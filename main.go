@@ -1,13 +1,22 @@
 package main
 
 import (
+	"fmt"
 	"log"
+	"os"
+	"wetherBot/clients/openweather"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"github.com/joho/godotenv"
 )
 
 func main() {
-	bot, err := tgbotapi.NewBotAPI("MyAwesomeBotToken")
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+
+	bot, err := tgbotapi.NewBotAPI(os.Getenv("BOT_TOKEN"))
 	if err != nil {
 		log.Panic(err)
 	}
@@ -21,11 +30,25 @@ func main() {
 
 	updates := bot.GetUpdatesChan(u)
 
+	owClient := openweather.New(os.Getenv("OPEN_WEATHER_API_KEY"))
+
 	for update := range updates {
 		if update.Message != nil { // If we got a message
 			log.Printf("[%s] %s", update.Message.From.UserName, update.Message.Text)
 
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, update.Message.Text)
+			coordinates, err := owClient.Coordinates(update.Message.From.UserName)
+
+			if err != nil {
+				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Не смогли получить координаты")
+				msg.ReplyToMessageID = update.Message.MessageID
+				bot.Send(msg)
+				continue
+			}
+
+			msg := tgbotapi.NewMessage(
+				update.Message.Chat.ID,
+				fmt.Sprintf("Долгта %f, Широта %f", coordinates.Lon, coordinates.Lat),
+			)
 			msg.ReplyToMessageID = update.Message.MessageID
 
 			bot.Send(msg)
