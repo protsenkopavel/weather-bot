@@ -49,3 +49,27 @@ func (o OpenWeatherClient) Coordinates(city string) (Coordinates, error) {
 		Lon: coordinatesResponse[0].Lon,
 	}, nil
 }
+
+func (o OpenWeatherClient) Weather(lat, lon float64) (Weather, error) {
+	url := "https://api.openweathermap.org/data/2.5/weather?lat=%f&lon%f&appid=%s&units=metric"
+	resp, err := http.Get(fmt.Sprintf(url, lat, lon, o.apiKey))
+
+	if err != nil {
+		return Weather{}, fmt.Errorf("error get weather: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return Weather{}, fmt.Errorf("error fail get weather: %d", resp.StatusCode)
+	}
+
+	var weatherResponse WeatherResponse
+	err = json.NewDecoder(resp.Body).Decode(&weatherResponse)
+
+	if err != nil {
+		return Weather{}, fmt.Errorf("error unmarshal weather response: %w", err)
+	}
+
+	return Weather{
+		Temp: weatherResponse.Main.Temp,
+	}, nil
+}
